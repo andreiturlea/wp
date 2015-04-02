@@ -8,6 +8,36 @@
 
 require_once 'idiorm.php';
 ORM::configure('sqlite:./db.sqlite');
+date_default_timezone_set("Europe/Athens");
+
+function generateRandomString($length = 32) {
+    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $randomString = '';
+    for ($i = 0; $i < $length; $i++) {
+        $randomString .= $characters[rand(0, strlen($characters) - 1)];
+    }
+    return $randomString;
+}
+
+function checkPassword($pwd, &$errors) {
+    $errors_init = $errors;
+
+    if (strlen($pwd) < 6) {
+        $errors[] = "Password too short!";
+    }
+
+    if (!preg_match("#[0-9]+#", $pwd)) {
+        $errors[] = "Password must include at least one number!";
+    }
+
+    if (!preg_match("#[a-zA-Z]+#", $pwd)) {
+        $errors[] = "Password must include at least one letter!";
+    }
+
+    return ($errors == $errors_init);
+}
+
+
 
 function add_user()
 {
@@ -24,24 +54,32 @@ function add_user()
 
                     $password = $_POST["password"];
                     if (strlen($password) >= 6) {
-                        if (isset($_POST["confirm"])) {
-                            $confirm = $_POST["confirm"];
+                        $errors = [];
+                        if(checkPassword($password, $errors)) {
 
-                            if ($password == $confirm) {
-                                $user = ORM::for_table('pw_user')->create();
-                                $user->usr_username = $username;
-                                $user->usr_password = $password;
-                                $user->usr_register_date = date('Y-m-d H:i:s');
-                                $user->save();
-                                echo "ok";
-                                return $user;
+                            if (isset($_POST["confirm"])) {
+                                $confirm = $_POST["confirm"];
+
+                                if ($password == $confirm) {
+                                    $salt = generateRandomString();
+                                    $user = ORM::for_table('pw_user')->create();
+                                    $user->usr_username = $username;
+                                    $user->usr_salt = $salt;
+                                    $user->usr_password = sha1($password . $salt);
+                                    $user->usr_register_date = date('Y-m-d H:i:s');
+                                    $user->save();
+                                    echo "ok";
+                                    return $user;
 
 
+                                } else {
+                                    echo "confirm";
+                                }
                             } else {
-                                echo "confirm";
+                                echo "setconfirm";
                             }
                         } else {
-                            echo "setconfirm";
+                            echo "password_strength";
                         }
                     } else {
                         echo "password //less than 6";
@@ -67,7 +105,7 @@ function add_user()
 $user = add_user();
 
 
-echo "<br>";
-echo('users: ' . ORM::for_table('pw_user')->count() . '<br>');
+//echo "<br>";
+//echo('users: ' . ORM::for_table('pw_user')->count() . '<br>');
 
 ?>
